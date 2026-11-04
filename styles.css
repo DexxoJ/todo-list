@@ -1,3 +1,4 @@
+
 :root {
     --background: #f5f6f8;
     --panel: #ffffff;
@@ -101,6 +102,7 @@ h1 span {
     box-shadow: 0 15px 45px rgba(0, 0, 0, 0.06);
 }
 
+
 /* Папки и категории */
 
 .workspace {
@@ -189,6 +191,7 @@ h1 span {
     cursor: not-allowed;
 }
 
+
 /* Добавление задачи */
 
 .task-form {
@@ -222,6 +225,7 @@ h1 span {
     opacity: 0.85;
 }
 
+
 /* Заголовок списка */
 
 .list-heading {
@@ -240,12 +244,14 @@ h1 span {
     font-size: 13px;
 }
 
+
 /* Поиск */
 
 .search-input {
     margin-top: 10px;
     background: var(--field);
 }
+
 
 /* Фильтры */
 
@@ -271,6 +277,7 @@ h1 span {
     font-weight: bold;
 }
 
+
 /* Список задач */
 
 .task-list {
@@ -291,6 +298,18 @@ h1 span {
     border: 1px solid var(--border);
     border-radius: 11px;
     background: var(--panel);
+
+    cursor: grab;
+
+    transition:
+        opacity 0.2s,
+        border-color 0.2s,
+        background 0.2s,
+        transform 0.2s;
+}
+
+.task-item:active {
+    cursor: grabbing;
 }
 
 .task-item.completed .task-text {
@@ -345,6 +364,21 @@ h1 span {
     background: rgba(35, 155, 104, 0.12);
 }
 
+
+/* Перетаскивание задач */
+
+.task-item.dragging {
+    opacity: 0.35;
+    border: 1px dashed var(--red);
+}
+
+.task-item.drag-over {
+    border: 2px dashed var(--red);
+    background: rgba(227, 75, 85, 0.06);
+    transform: scale(1.01);
+}
+
+
 /* Управление задачами */
 
 .task-priority {
@@ -377,11 +411,6 @@ h1 span {
     color: var(--text);
 }
 
-.icon-button:disabled {
-    opacity: 0.25;
-    cursor: default;
-}
-
 .edit-form {
     display: flex;
     gap: 5px;
@@ -405,6 +434,7 @@ h1 span {
     background: var(--field);
     color: var(--text);
 }
+
 
 /* Пустой список */
 
@@ -433,6 +463,7 @@ h1 span {
     color: var(--muted);
     font-size: 13px;
 }
+
 
 /* Нижняя панель */
 
@@ -485,6 +516,7 @@ h1 span {
 [hidden] {
     display: none !important;
 }
+
 
 /* Мобильная версия */
 

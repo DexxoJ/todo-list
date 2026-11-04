@@ -1,3 +1,4 @@
+
 // ========================================
 // 1. HTML-элементы
 // ========================================
@@ -43,6 +44,12 @@ const PRIORITIES = {
     low: "Низкий",
     medium: "Средний",
     high: "Высокий"
+};
+
+const PRIORITY_ORDER = {
+    high: 1,
+    medium: 2,
+    low: 3
 };
 
 function createId() {
@@ -102,6 +109,17 @@ function loadData() {
                 : []
         }));
 
+        data.tasks = data.tasks.map((task, index) => ({
+            ...task,
+            priority: PRIORITIES[task.priority]
+                ? task.priority
+                : "medium",
+            order: Number.isFinite(Number(task.order))
+                ? Number(task.order)
+                : index + 1,
+            completed: Boolean(task.completed)
+        }));
+
         if (!data.folders.some(folder => folder.id === data.activeFolderId)) {
             data.activeFolderId = data.folders[0].id;
         }
@@ -127,6 +145,7 @@ let lastDeleted = data.lastDeleted || null;
 let currentFilter = "all";
 let searchQuery = "";
 let editingTaskId = null;
+let draggedTaskId = null;
 
 
 // ========================================
@@ -418,22 +437,49 @@ function addTask(text) {
 
     if (!cleanText) return;
 
-    const currentOrder = tasks.reduce(
-        (max, task) => Math.max(max, Number(task.order) || 0),
-        0
-    );
+    const priority = PRIORITIES[newPriority.value]
+        ? newPriority.value
+        : "medium";
 
     const task = {
         id: createId(),
         text: cleanText,
         completed: false,
-        priority: newPriority.value,
+        priority,
         folderId: activeFolderId,
         categoryId: activeCategoryId === "all"
             ? ""
             : activeCategoryId,
-        order: currentOrder + 1
+        order: 0
     };
+
+    // Получаем все задачи текущей папки.
+    const folderTasks = tasks
+        .filter(item => item.folderId === activeFolderId)
+        .sort((a, b) => a.order - b.order);
+
+    // Находим место для новой задачи по приоритету.
+    // Это правило действует только при создании.
+    const newPriorityRank = PRIORITY_ORDER[priority];
+
+    let insertIndex = folderTasks.findIndex(item => {
+        if (item.completed) return true;
+
+        const existingRank = PRIORITY_ORDER[item.priority] || 2;
+
+        return existingRank > newPriorityRank;
+    });
+
+    if (insertIndex === -1) {
+        insertIndex = folderTasks.length;
+    }
+
+    folderTasks.splice(insertIndex, 0, task);
+
+    // Перенумеровываем задачи папки.
+    folderTasks.forEach((item, index) => {
+        item.order = index + 1;
+    });
 
     tasks.push(task);
 
@@ -493,6 +539,9 @@ function updatePriority(taskId, priority) {
     if (!task) return;
 
     task.priority = priority;
+
+    // Меняем только приоритет.
+    // Позиция задачи остаётся прежней.
 
     saveData();
     renderTasks();
@@ -572,14 +621,12 @@ function undoDelete() {
     }
 
     lastDeleted.tasks.forEach((task, position) => {
-        // Не восстанавливаем задачу, если её папка уже удалена.
         const folderExists = folders.some(
             folder => folder.id === task.folderId
         );
 
         if (!folderExists) return;
 
-        // Не восстанавливаем задачу, если она уже существует.
         if (tasks.some(item => item.id === task.id)) return;
 
         const index = Math.min(
@@ -598,35 +645,62 @@ function undoDelete() {
 
 
 // ========================================
-// 18. Перемещение задач
+// 18. Перетаскивание задач
 // ========================================
 
-function moveTask(taskId, direction) {
-    const task = tasks.find(item => item.id === taskId);
+function reorderTask(sourceId, targetId) {
+    if (!sourceId || !targetId || sourceId === targetId) return;
 
-    if (!task) return;
+    const sourceTask = tasks.find(task => task.id === sourceId);
+    const targetTask = tasks.find(task => task.id === targetId);
 
-    const group = getCurrentTasks()
-        .filter(item => item.completed === task.completed)
+    if (!sourceTask || !targetTask) return;
+
+    if (sourceTask.folderId !== targetTask.folderId) return;
+
+    // Все задачи папки в сохранённом порядке.
+    const folderTasks = tasks
+        .filter(task => task.folderId === activeFolderId)
         .sort((a, b) => a.order - b.order);
 
-    const index = group.findIndex(
-        item => item.id === taskId
+    // Задачи, которые сейчас отображаются в списке.
+    const visibleGroup = getCurrentTasks()
+        .sort((a, b) => a.order - b.order);
+
+    const sourceIndex = visibleGroup.findIndex(
+        task => task.id === sourceId
     );
 
-    const targetIndex = index + direction;
+    const targetIndex = visibleGroup.findIndex(
+        task => task.id === targetId
+    );
 
-    if (targetIndex < 0 || targetIndex >= group.length) {
-        return;
-    }
+    if (sourceIndex === -1 || targetIndex === -1) return;
 
-    const currentTask = group[index];
-    const targetTask = group[targetIndex];
+    // Перемещаем задачу в списке.
+    const [movedTask] = visibleGroup.splice(sourceIndex, 1);
 
-    const temporaryOrder = currentTask.order;
+    visibleGroup.splice(targetIndex, 0, movedTask);
 
-    currentTask.order = targetTask.order;
-    targetTask.order = temporaryOrder;
+    // Сохраняем позиции задач, которые скрыты фильтром категории.
+    const visibleIds = new Set(
+        getCurrentTasks().map(task => task.id)
+    );
+
+    let visibleIndex = 0;
+
+    const reorderedFolderTasks = folderTasks.map(task => {
+        if (visibleIds.has(task.id)) {
+            return visibleGroup[visibleIndex++];
+        }
+
+        return task;
+    });
+
+    // Записываем новый порядок.
+    reorderedFolderTasks.forEach((task, index) => {
+        task.order = index + 1;
+    });
 
     saveData();
     renderTasks();
@@ -642,7 +716,9 @@ function getVisibleTasks() {
 
     return getCurrentTasks()
         .filter(task => {
-            const matchesSearch = task.text.toLowerCase().includes(query);
+            const matchesSearch = task.text
+                .toLowerCase()
+                .includes(query);
 
             const matchesFilter =
                 currentFilter === "all" ||
@@ -652,10 +728,12 @@ function getVisibleTasks() {
             return matchesSearch && matchesFilter;
         })
         .sort((a, b) => {
+            // Выполненные задачи остаются внизу.
             if (a.completed !== b.completed) {
                 return Number(a.completed) - Number(b.completed);
             }
 
+            // В остальном соблюдаем сохранённый порядок.
             return a.order - b.order;
         });
 }
@@ -669,12 +747,72 @@ function createTaskElement(task, index, visibleTasks) {
     const item = document.createElement("li");
 
     item.className = "task-item";
+    item.draggable = true;
+    item.dataset.taskId = task.id;
 
     if (task.completed) {
         item.classList.add("completed");
     }
 
-    // Чекбокс
+    // Начало перетаскивания.
+
+    item.addEventListener("dragstart", event => {
+        if (event.target.closest("button, input, select, form")) {
+            event.preventDefault();
+            return;
+        }
+
+        draggedTaskId = task.id;
+
+        item.classList.add("dragging");
+
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", task.id);
+    });
+
+    // Перемещение над другой задачей.
+
+    item.addEventListener("dragover", event => {
+        if (!draggedTaskId || draggedTaskId === task.id) return;
+
+        event.preventDefault();
+
+        event.dataTransfer.dropEffect = "move";
+
+        item.classList.add("drag-over");
+    });
+
+    // Убираем подсветку.
+
+    item.addEventListener("dragleave", () => {
+        item.classList.remove("drag-over");
+    });
+
+    // Отпускаем задачу.
+
+    item.addEventListener("drop", event => {
+        event.preventDefault();
+
+        item.classList.remove("drag-over");
+
+        const sourceId = event.dataTransfer.getData("text/plain");
+
+        reorderTask(sourceId || draggedTaskId, task.id);
+
+        draggedTaskId = null;
+    });
+
+    // Завершение перетаскивания.
+
+    item.addEventListener("dragend", () => {
+        draggedTaskId = null;
+
+        document.querySelectorAll(".task-item").forEach(element => {
+            element.classList.remove("dragging", "drag-over");
+        });
+    });
+
+    // Чекбокс.
 
     const checkbox = document.createElement("input");
 
@@ -691,7 +829,7 @@ function createTaskElement(task, index, visibleTasks) {
         toggleTask(task.id);
     });
 
-    // Контент
+    // Контент.
 
     const content = document.createElement("div");
 
@@ -749,7 +887,8 @@ function createTaskElement(task, index, visibleTasks) {
         const priority = document.createElement("span");
 
         priority.className = `chip priority-${task.priority}`;
-        priority.textContent = `Приоритет: ${PRIORITIES[task.priority] || "Средний"}`;
+        priority.textContent =
+            `Приоритет: ${PRIORITIES[task.priority] || "Средний"}`;
 
         meta.append(priority);
 
@@ -773,7 +912,7 @@ function createTaskElement(task, index, visibleTasks) {
         content.append(text, meta);
     }
 
-    // Выпадающий список приоритета
+    // Выпадающий список приоритета.
 
     const prioritySelect = document.createElement("select");
 
@@ -798,7 +937,7 @@ function createTaskElement(task, index, visibleTasks) {
         updatePriority(task.id, prioritySelect.value);
     });
 
-    // Кнопки управления
+    // Кнопки управления.
 
     const actions = document.createElement("div");
 
@@ -818,18 +957,6 @@ function createTaskElement(task, index, visibleTasks) {
         return button;
     }
 
-    const upButton = createActionButton(
-        "↑",
-        "Переместить выше",
-        () => moveTask(task.id, -1)
-    );
-
-    const downButton = createActionButton(
-        "↓",
-        "Переместить ниже",
-        () => moveTask(task.id, 1)
-    );
-
     const editButton = createActionButton(
         "✎",
         "Редактировать",
@@ -845,23 +972,7 @@ function createTaskElement(task, index, visibleTasks) {
         () => deleteTask(task.id)
     );
 
-    const previousTask = visibleTasks[index - 1];
-    const nextTask = visibleTasks[index + 1];
-
-    upButton.disabled =
-        !previousTask ||
-        previousTask.completed !== task.completed;
-
-    downButton.disabled =
-        !nextTask ||
-        nextTask.completed !== task.completed;
-
-    actions.append(
-        upButton,
-        downButton,
-        editButton,
-        deleteButton
-    );
+    actions.append(editButton, deleteButton);
 
     item.append(
         checkbox,
@@ -1000,7 +1111,7 @@ function loadTheme() {
 // 24. Обработчики событий
 // ========================================
 
-// Добавление задачи
+// Добавление задачи.
 
 taskForm.addEventListener("submit", event => {
     event.preventDefault();
@@ -1011,7 +1122,8 @@ taskForm.addEventListener("submit", event => {
     taskInput.focus();
 });
 
-// Создание папки
+
+// Создание папки.
 
 folderForm.addEventListener("submit", event => {
     event.preventDefault();
@@ -1021,7 +1133,8 @@ folderForm.addEventListener("submit", event => {
     }
 });
 
-// Создание категории
+
+// Создание категории.
 
 categoryForm.addEventListener("submit", event => {
     event.preventDefault();
@@ -1031,15 +1144,18 @@ categoryForm.addEventListener("submit", event => {
     }
 });
 
-// Удаление папки
+
+// Удаление папки.
 
 deleteFolderButton.addEventListener("click", deleteFolder);
 
-// Удаление категории
+
+// Удаление категории.
 
 deleteCategoryButton.addEventListener("click", deleteCategory);
 
-// Выбор папки
+
+// Выбор папки.
 
 folderSelect.addEventListener("change", () => {
     activeFolderId = folderSelect.value;
@@ -1051,7 +1167,8 @@ folderSelect.addEventListener("change", () => {
     renderAll();
 });
 
-// Выбор категории
+
+// Выбор категории.
 
 categorySelect.addEventListener("change", () => {
     activeCategoryId = categorySelect.value;
@@ -1062,7 +1179,8 @@ categorySelect.addEventListener("change", () => {
     renderTasks();
 });
 
-// Поиск
+
+// Поиск.
 
 searchInput.addEventListener("input", () => {
     searchQuery = searchInput.value;
@@ -1070,7 +1188,8 @@ searchInput.addEventListener("input", () => {
     renderTasks();
 });
 
-// Фильтры
+
+// Фильтры.
 
 filterButtons.forEach(button => {
     button.addEventListener("click", () => {
@@ -1087,15 +1206,18 @@ filterButtons.forEach(button => {
     });
 });
 
-// Удаление выполненных задач
+
+// Удаление выполненных задач.
 
 clearButton.addEventListener("click", clearCompletedTasks);
 
-// Отмена удаления
+
+// Отмена удаления.
 
 undoButton.addEventListener("click", undoDelete);
 
-// Переключение темы
+
+// Переключение темы.
 
 themeToggle.addEventListener("click", toggleTheme);
 
