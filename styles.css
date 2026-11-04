@@ -136,7 +136,7 @@ h1 span {
 .create-form input {
     width: 230px;
     min-width: 0;
-    padding: 12px 0px;
+    padding: 12px 8px;
     border: 1px solid var(--border);
     border-radius: 9px;
     background: var(--panel);
@@ -168,7 +168,7 @@ h1 span {
 .select-row select {
     width: 220px;
     min-width: 0;
-    padding: 12px 0px;
+    padding: 12px 8px;
     border: 1px solid var(--border);
     border-radius: 9px;
     background: var(--panel);
