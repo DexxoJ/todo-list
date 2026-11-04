@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мои задачи — To-do List</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<main class="app">
+    <header class="header">
+        <div>
+            <p class="eyebrow">ПЛАНИРОВАНИЕ НА КАЖДЫЙ ДЕНЬ</p>
+            <h1>Мои задачи<span>.</span></h1>
+            <p class="subtitle">Маленькие шаги ведут к большим результатам.</p>
+        </div>
+
+        <button id="themeToggle" class="theme-button" type="button" aria-label="Переключить тему">
+            ☾
+        </button>
+    </header>
+
+    <section class="panel">
+
+        <div class="workspace">
+
+            <div class="workspace-group">
+                <h3>Выбор папки</h3>
+
+                <form id="folderForm" class="create-form">
+                    <input
+                        id="folderInput"
+                        type="text"
+                        placeholder="Название новой папки"
+                        maxlength="40"
+                        required
+                    >
+                    <button type="submit">+ Создать</button>
+                </form>
+
+                <div class="select-row">
+                    <select id="folderSelect" aria-label="Выбор папки"></select>
+                    <button id="deleteFolderButton" class="delete-item-button" type="button">
+                        Удалить
+                    </button>
+                </div>
+            </div>
+
+            <div class="workspace-group">
+                <h3>Выбор категории</h3>
+
+                <form id="categoryForm" class="create-form">
+                    <input
+                        id="categoryInput"
+                        type="text"
+                        placeholder="Название новой категории"
+                        maxlength="40"
+                        required
+                    >
+                    <button type="submit">+ Создать</button>
+                </form>
+
+                <div class="select-row">
+                    <select id="categorySelect" aria-label="Выбор категории"></select>
+                    <button id="deleteCategoryButton" class="delete-item-button" type="button">
+                        Удалить
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <form id="taskForm" class="task-form">
+            <input
+                id="taskInput"
+                type="text"
+                placeholder="Что нужно сделать?"
+                maxlength="120"
+                required
+            >
+
+            <select id="newPriority" aria-label="Приоритет новой задачи">
+                <option value="low">Низкий</option>
+                <option value="medium" selected>Средний</option>
+                <option value="high">Высокий</option>
+            </select>
+
+            <button type="submit" class="add-button">+ Добавить</button>
+        </form>
+
+        <div class="list-heading">
+            <h2>Ваш список</h2>
+            <span id="taskTotal">0 задач</span>
+        </div>
+
+        <input
+            id="searchInput"
+            class="search-input"
+            type="search"
+            placeholder="Поиск по названию..."
+        >
+
+        <div class="filters">
+            <button class="filter active" data-filter="all" type="button">Все</button>
+            <button class="filter" data-filter="active" type="button">Активные</button>
+            <button class="filter" data-filter="completed" type="button">Выполненные</button>
+        </div>
+
+        <ul id="taskList" class="task-list"></ul>
+
+        <div id="emptyState" class="empty-state">
+            <div class="empty-icon">✓</div>
+            <h3 id="emptyTitle">Пока здесь пусто</h3>
+            <p id="emptyDescription">Добавьте первую задачу и начните действовать.</p>
+        </div>
+
+        <footer class="footer">
+            <span id="remainingCount">Нет активных задач</span>
+
+            <div class="footer-buttons">
+                <button id="undoButton" type="button" disabled>
+                    ↶ Отменить удаление
+                </button>
+
+                <button id="clearButton" type="button">
+                    Удалить выполненные
+                </button>
+            </div>
+        </footer>
+
+    </section>
+
+    <p class="storage-note">● Данные сохраняются автоматически</p>
+</main>
+
+<script src="script.js"></script>
+</body>
+</html>
